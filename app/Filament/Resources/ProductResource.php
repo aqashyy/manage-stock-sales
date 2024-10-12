@@ -6,6 +6,7 @@ use App\Filament\Resources\ProductResource\Pages;
 use App\Filament\Resources\ProductResource\RelationManagers;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\StockUpdate;
 use Filament\Forms;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -111,7 +112,38 @@ class ProductResource extends Resource
                     ->disabled()  // Make it non-clickable
                     ->visible(fn (Product $record) => $record->quantity <= 0),
 
-                Tables\Actions\EditAction::make(),
+                // Action for add stock or quantity
+                Action::make('Add Stock')
+                ->label('Add Stock')
+                ->icon('heroicon-s-plus-circle')
+                ->form([
+                    TextInput::make('quantity_added')
+                        ->numeric()
+                        ->required()
+                        ->label('Quantity to add'),
+                ])
+                ->action(function (Product $record, array $data) {
+                    $quantityAdded = $data['quantity_added'];
+
+                    $record->quantity += $quantityAdded;
+                    $record->save();
+
+                    StockUpdate::create([
+                        'product_id' => $record->id,
+                        'quantity_added' => $quantityAdded,
+                    ]);
+                    Notification::make()
+                            ->title('Stock quantity updated')
+                            ->success()
+                            ->send();
+                })
+                ->requiresConfirmation()  // Optional confirmation modal
+                    ->modalHeading('Add Stock Quantity') // Modal heading
+                    ->modalSubmitActionLabel('Add stock')
+                    ->modalIcon('heroicon-s-plus-circle')
+                    ->color('danger'), // Button color
+
+                    Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
