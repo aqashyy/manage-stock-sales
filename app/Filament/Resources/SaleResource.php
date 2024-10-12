@@ -16,9 +16,10 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-
+use Closure;
 class SaleResource extends Resource
 {
     protected static ?string $model = Sale::class;
@@ -43,7 +44,19 @@ class SaleResource extends Resource
                         $price = $price * $quantity;
                         // dd($price);
                         return $set('total_price',$price);
-                    }),
+                    })->rules([
+                        fn (Get $get): Closure => function (string $attribute, $value, Closure $fail) use ($get) {
+                            $current_quantity = Product::where('id',$get('product_id'))
+                            ->pluck('quantity')->first();
+                            if ($value > $current_quantity) {
+                                if($current_quantity == '0')
+                                {
+                                    $fail('Out of stock!');
+                                }
+                                $fail('Only '.$current_quantity.' stocks available!');
+                            }
+                        },
+                    ]),
 
                 TextInput::make('total_price')->numeric()->label('Total Price ($)')->disabled(),  // Readonly
 
